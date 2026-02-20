@@ -14,9 +14,9 @@ var userRouter = require('./routes/user');
 
 var app = express();
 
-// view engine setup
-app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'hbs');
+/* ========================
+   BASIC MIDDLEWARE
+======================== */
 
 app.use(logger('dev'));
 app.use(express.json());
@@ -24,11 +24,50 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.use(function(req, res, next) {
+/* ========================
+   CORS CONFIGURATION
+======================== */
+
+app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, x-access-token");
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Origin, X-Requested-With, Content-Type, Accept, x-access-token, Authorization"
+  );
+  res.header(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, OPTIONS"
+  );
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+
   next();
 });
+
+/* ========================
+   HEALTH & ROOT ROUTES
+======================== */
+
+// Health check for Docker
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: "OK",
+    message: "Server is healthy"
+  });
+});
+
+// Root route (prevents 404 on /)
+app.get('/', (req, res) => {
+  res.status(200).json({
+    message: "API is running successfully 🚀"
+  });
+});
+
+/* ========================
+   API ROUTES
+======================== */
 
 app.use('/products', productRouter);
 app.use('/category', categoryRouter);
@@ -38,20 +77,23 @@ app.use('/purchase', purchaseRouter);
 app.use('/admin', adminRouter);
 app.use('/user', userRouter);
 
-// catch 404 and forward to error handler
-app.use(function(req, res, next) {
-  next(createError(404));
+/* ========================
+   404 HANDLER
+======================== */
+
+app.use((req, res, next) => {
+  next(createError(404, "Route Not Found"));
 });
 
-// error handler
-app.use(function(err, req, res, next) {
-  // set locals, only providing error in development
-  res.locals.message = err.message;
-  res.locals.error = req.app.get('env') === 'development' ? err : {};
+/* ========================
+   ERROR HANDLER
+======================== */
 
-  // render the error page
-  res.status(err.status || 500);
-  res.render('error');
+app.use((err, req, res, next) => {
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || "Internal Server Error"
+  });
 });
 
 module.exports = app;
